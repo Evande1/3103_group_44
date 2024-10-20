@@ -17,6 +17,10 @@ mongoose.connect(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
+
+// get image
+app.use('/images', express.static('images'));
+
 // track click
 app.get('/track', async (req, res) => {
   const userId = req.query.userId || uuidv4(); // Either get userId from query or generate a new one
@@ -27,26 +31,23 @@ app.get('/track', async (req, res) => {
     const existingClick = await Click.findOne({ userId, jobId });
 
     if (existingClick) {
-      res
-        .status(200)
-        .send(
-          `User ${userId} has already clicked this link with these parameters.`
-        );
+      console.log(`User ${userId} has already clicked this link with these parameters.`)
+        
     } else {
       // Store the click data in MongoDB if no existing record is found
       const click = new Click({ userId, jobId });
       await click.save();
-      res.status(200).send(`Click tracked for user: ${userId}`);
+      console.log(`User ${userId} clicked the link with jobId ${jobId}`);
     }
   } catch (err) {
-    res.status(500).send(`Error tracking click: ${err}`);
+    console.error(err);
   }
   // Serve the image immediately after tracking
-  
+  let img = `<img src="http://localhost:3030/images/image1.png"/>`;
+  res.send(img);
 });
 
-// get image
-app.use('/images', express.static('images'));
+
 
 app.get('/stats/all', async (req, res) => {
     const clicks = await Click.find({}); // return the whole list
