@@ -51,10 +51,10 @@ app.get('/image.png', async (req, res) => {
 
 // create jobs (mass email feature)
 app.post('/jobs', async (req, res) => {
-  const { id, departmentCode, totalCount } = req.body;
+  const { id, departmentCode, totalCount, fileName } = req.body;
   console.log(req.body);
   date = new Date();
-  const job = new Jobs({ id, departmentCode, date, totalCount });
+  const job = new Jobs({ id, fileName, departmentCode, date, totalCount });
   await job.save();
   res.send(job);
 });
