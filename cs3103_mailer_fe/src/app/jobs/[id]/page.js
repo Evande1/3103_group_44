@@ -39,8 +39,6 @@ const SingleJobReportPage = ({ params }) => {
                 totalCount: 50,
                 createdAt: "2023-10-20T14:30:00Z",
                 status: "Completed",
-                duration: "00:05:23",
-                successRate: 98,
                 departmentBreakdown: [
                     {
                         name: "HR",
