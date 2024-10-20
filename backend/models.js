@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const JobsSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
+    fileName: { type: String, required: true },
     departmentCode: { type: String, required: true },
     date: { type: Date, required: true },
     totalCount: { type: String, required: true },
