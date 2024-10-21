@@ -27,6 +27,11 @@ app.get('/image.png', async (req, res) => {
 
   console.log('userId:', userId);
   console.log('jobId:', jobId);
+  if (!userId && !jobId) {
+    console.log('error no userId or jobId');
+    res.sendFile(path.join(__dirname, 'images/download.png'));
+    return
+  }
   try {
     // Check if there is already a click from this user with the same params
     const user = await Departments.findOne({ email: userId, jobId });

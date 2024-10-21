@@ -8,4 +8,4 @@ RUN npm install
 # Bundle app source
 COPY . .
 EXPOSE 3030
-CMD [ "node", "server.js" ]
+CMD [ "node", "index.js" ]

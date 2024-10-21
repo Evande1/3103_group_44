@@ -5,14 +5,16 @@ steps:
       [
         'build',
         '-t',
-        '$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO:$COMMIT_SHA',
+        'gcr.io/$PROJECT_ID/backend:$COMMIT_SHA',
         '-f',
         './backend/Dockerfile',
         './backend',
       ]
 
+
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/backend:$COMMIT_SHA']
+
 
   # Deploy the user-service to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -21,16 +23,19 @@ steps:
       [
         'run',
         'deploy',
-        '$_SERVICE_NAME',
+        '${_SERVICE_NAME}',
         '--image',
-        '$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO:$COMMIT_SHA',
+        'gcr.io/$PROJECT_ID/backend:$COMMIT_SHA',
         '--region',
-        '$_DEPLOY_REGION',
+        '${_REGION}',
         '--port',
-        '$_PORT',
+        '${_PORT}',
         '--allow-unauthenticated',
       ]
-timeout: 1200s
-images:
-  - '$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO:$COMMIT_SHA'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
 # asia-southeast1
+
+images:
+- 'gcr.io/$PROJECT_ID/backend:$COMMIT_SHA'
