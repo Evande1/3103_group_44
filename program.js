@@ -109,4 +109,12 @@ main().catch(err => console.error("Error in email sending process:", err));
 address.csv
 name,email,department_code
 Fai Yew,e1122700@u.nus.edu,CS
+
+┌──(faiyew㉿DESKTOP-FY)-[~/Documents/CS3103/Project]
+└─$ node program.js CS "Welcome to CS Department"
+Sent email to Fai Yew <e1122700@u.nus.edu>
+
+Email sending report:
+Department: CS, Emails sent: 1
+
 */
