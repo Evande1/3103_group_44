@@ -29,38 +29,38 @@ app.use(cors());
 app.use("/images", express.static("images"));
 
 // track viewing
-app.get("/image.png", async (req, res) => {
-    const userId = req.query.userId; // Either get userId from query or generate a new one
-    const jobId = req.query.jobId;
+// app.get("/image.png", async (req, res) => {
+//     const userId = req.query.userId; // Either get userId from query or generate a new one
+//     const jobId = req.query.jobId;
 
-    console.log("userId:", userId);
-    console.log("jobId:", jobId);
-    if (!userId && !jobId) {
-        console.log("error no userId or jobId");
-        res.sendFile(path.join(__dirname, "images/download.png"));
-        return;
-    }
-    try {
-        // Check if there is already a click from this user with the same params
-        const user = await Departments.findOne({ email: userId, jobId });
+//     console.log("userId:", userId);
+//     console.log("jobId:", jobId);
+//     if (!userId && !jobId) {
+//         console.log("error no userId or jobId");
+//         res.sendFile(path.join(__dirname, "images/download.png"));
+//         return;
+//     }
+//     try {
+//         // Check if there is already a click from this user with the same params
+//         const user = await Departments.findOne({ email: userId, jobId });
 
-        if (!user) {
-            // Store the click data in MongoDB if no existing record is found
-            console.log("error no user found");
-        } else {
-            await Departments.updateOne(
-                { email: userId, jobId },
-                { $set: { hasRead: true } }
-            );
-            console.log(`User ${userId} clicked the link with jobId ${jobId}`);
-            // might need to redo this in the future
-            res.sendFile(path.join(__dirname, "images/download.png"));
-        }
-    } catch (error) {
-        console.error("Failed to track click:", error);
-        res.status(500).send("Failed to track click");
-    }
-});
+//         if (!user) {
+//             // Store the click data in MongoDB if no existing record is found
+//             console.log("error no user found");
+//         } else {
+//             await Departments.updateOne(
+//                 { email: userId, jobId },
+//                 { $set: { hasRead: true } }
+//             );
+//             console.log(`User ${userId} clicked the link with jobId ${jobId}`);
+//             // might need to redo this in the future
+//             res.sendFile(path.join(__dirname, "images/download.png"));
+//         }
+//     } catch (error) {
+//         console.error("Failed to track click:", error);
+//         res.status(500).send("Failed to track click");
+//     }
+// });
 
 app.get("/image.png", async (req, res) => {
     const userId = req.query.userId;
