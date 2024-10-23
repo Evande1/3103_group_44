@@ -94,6 +94,8 @@ app.post("/send-emails", upload.single("file"), async (req, res) => {
         }
 
         const department = req.body.department;
+
+        console.log("sending to department:", department);
         if (!department) {
             return res.status(400).json({ error: "Department is required" });
         }
@@ -109,6 +111,9 @@ app.post("/send-emails", upload.single("file"), async (req, res) => {
 
             // Skip if department doesn't match (unless 'all' is specified)
             if (department !== "all" && department_code !== department) {
+                console.log(
+                    `Skipping ${email} (department ${department_code} doesn't match ${department})`
+                );
                 continue;
             }
 
