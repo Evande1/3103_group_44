@@ -179,7 +179,7 @@ async function sendEmailsInBackground(jobId, recipients) {
                     jobId,
                     recipient.email,
                     recipient.name,
-                    recipient.departmentCode
+                    recipient.department_code
                 );
 
                 // Update recipient status
