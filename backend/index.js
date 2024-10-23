@@ -80,7 +80,6 @@ app.get("/image.png", async (req, res) => {
         const recipient = await Recipient.findOne({
             email: userId,
             jobId: jobId,
-            status: "sent", // Only track if email was successfully sent
         });
 
         if (!recipient) {
