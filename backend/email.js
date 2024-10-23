@@ -43,12 +43,20 @@ async function sendEmail(
     emailSubject
 ) {
     try {
+        const trackingUrl = `${"https://backend-936013274404.asia-southeast1.run.app/"}/image.png?userId=${encodeURIComponent(
+            recipientEmail
+        )}&jobId=${encodeURIComponent(jobId)}`;
+
+        // Add tracking pixel to email body
         const emailBody = `
             <html>
                 <body>
                     <p>Hello ${name},</p>
                     <p>This is a test email for department ${department}.</p>
                     <p>Job ID: ${jobId}</p>
+                    
+                    <!-- Tracking Pixel -->
+                    <img src="${trackingUrl}" alt="" width="1" height="1" style="display:none" />
                 </body>
             </html>
         `;

@@ -62,32 +62,58 @@ app.get("/image.png", async (req, res) => {
     }
 });
 
-// create jobs (mass email feature)
-app.post("/jobs", async (req, res) => {
-    const { id, departmentCode, totalCount, fileName } = req.body;
-    console.log(req.body);
-    date = new Date();
-    const job = new Jobs({ id, fileName, departmentCode, date, totalCount });
-    await job.save();
-    res.send(job);
-});
+app.get("/image.png", async (req, res) => {
+    const userId = req.query.userId;
+    const jobId = req.query.jobId;
+    console.log("Tracking - userId:", userId, "jobId:", jobId);
 
-// create departments (add try catch later)
-app.post("/departments", async (req, res) => {
-    const { emailList, departmentCode, jobId } = req.body;
-    const departments = await Promise.all(
-        emailList.map(async (email) => {
-            const department = new Departments({
-                email,
-                hasRead: false,
-                departmentCode,
-                jobId,
-            });
-            return department.save(); // Save each department document
-        })
-    );
+    // Always have a default path to the tracking pixel
+    const defaultImagePath = path.join(__dirname, "images/download.png");
 
-    res.status(200).send(`Created ${departments.length} departments`);
+    if (!userId || !jobId) {
+        console.log("Error: Missing userId or jobId");
+        return res.sendFile(defaultImagePath);
+    }
+
+    try {
+        // Find recipient and update read status
+        const recipient = await Recipient.findOne({
+            email: userId,
+            jobId: jobId,
+            status: "sent", // Only track if email was successfully sent
+        });
+
+        if (!recipient) {
+            console.log("Error: No recipient found for", userId, jobId);
+            return res.sendFile(defaultImagePath);
+        }
+
+        // Update read status if not already read
+        if (!recipient.hasRead) {
+            await Recipient.updateOne(
+                { email: userId, jobId: jobId },
+                {
+                    $set: {
+                        hasRead: true,
+                        readAt: new Date(),
+                    },
+                }
+            );
+            console.log(
+                `Updated read status for user ${userId} with jobId ${jobId}`
+            );
+        } else {
+            console.log(
+                `Email already marked as read for user ${userId} with jobId ${jobId}`
+            );
+        }
+
+        // Always send the tracking pixel
+        res.sendFile(defaultImagePath);
+    } catch (error) {
+        console.error("Failed to track email read:", error);
+        res.sendFile(defaultImagePath);
+    }
 });
 
 // get all jobs
@@ -106,17 +132,15 @@ app.get("/api/jobs", async (req, res) => {
 app.get("/api/jobs/:jobId", async (req, res) => {
     try {
         const { jobId } = req.params;
-        console.log(jobId);
 
-        // First find the job to ensure it exists
+        // First find the job
         const job = await Job.findOne({ jobId });
-        console.log(job);
 
         if (!job) {
             return res.status(404).send("Job not found");
         }
 
-        // Use aggregation to group recipients by department
+        // Use aggregation to group recipients and include read status
         const departmentStats = await Recipient.aggregate([
             // Match recipients for this job
             {
@@ -135,6 +159,8 @@ app.get("/api/jobs/:jobId", async (req, res) => {
                             name: "$name",
                             status: "$status",
                             sentAt: "$sentAt",
+                            hasRead: { $ifNull: ["$hasRead", false] },
+                            readAt: "$readAt",
                             error: "$error",
                         },
                     },
@@ -149,9 +175,15 @@ app.get("/api/jobs/:jobId", async (req, res) => {
                             $cond: [{ $eq: ["$status", "failed"] }, 1, 0],
                         },
                     },
-                    pending: {
+                    processing: {
                         $sum: {
-                            $cond: [{ $eq: ["$status", "pending"] }, 1, 0],
+                            $cond: [{ $eq: ["$status", "processing"] }, 1, 0],
+                        },
+                    },
+                    // Count read status
+                    read: {
+                        $sum: {
+                            $cond: [{ $eq: ["$hasRead", true] }, 1, 0],
                         },
                     },
                 },
@@ -166,7 +198,23 @@ app.get("/api/jobs/:jobId", async (req, res) => {
                     stats: {
                         sent: "$sent",
                         failed: "$failed",
-                        pending: "$pending",
+                        processing: "$processing",
+                        read: "$read",
+                        unread: { $subtract: ["$count", "$read"] },
+                        readRate: {
+                            $cond: [
+                                { $eq: ["$sent", 0] },
+                                0,
+                                {
+                                    $multiply: [
+                                        {
+                                            $divide: ["$read", "$sent"],
+                                        },
+                                        100,
+                                    ],
+                                },
+                            ],
+                        },
                     },
                 },
             },
@@ -178,10 +226,30 @@ app.get("/api/jobs/:jobId", async (req, res) => {
             },
         ]);
 
+        // Calculate total stats safely
+        const totalStats = departmentStats.reduce(
+            (acc, dept) => {
+                const stats = dept.stats || {};
+                return {
+                    sent: (acc.sent || 0) + (stats.sent || 0),
+                    failed: (acc.failed || 0) + (stats.failed || 0),
+                    processing: (acc.processing || 0) + (stats.processing || 0),
+                    read: (acc.read || 0) + (stats.read || 0),
+                    unread: (acc.unread || 0) + (stats.unread || 0),
+                };
+            },
+            { sent: 0, failed: 0, processing: 0, read: 0, unread: 0 }
+        );
+
+        // Calculate read rate for total stats
+        totalStats.readRate =
+            totalStats.sent > 0 ? (totalStats.read / totalStats.sent) * 100 : 0;
+
         // Combine job data with department stats
         const response = {
             ...job.toObject(),
             departments: departmentStats,
+            totalStats,
         };
 
         res.status(200).send(response);
@@ -190,7 +258,6 @@ app.get("/api/jobs/:jobId", async (req, res) => {
         res.status(500).send("Failed to fetch job details");
     }
 });
-
 app.post("/api/send-emails", upload.single("file"), async (req, res) => {
     try {
         if (!req.file) {

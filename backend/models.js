@@ -22,7 +22,7 @@ const JobSchema = new mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ["processing", "processing", "completed", "failed"],
+            enum: ["processing", "completed", "failed"],
             default: "processing",
         },
         totalRecipients: {
@@ -68,6 +68,13 @@ const RecipientSchema = new mongoose.Schema(
             enum: ["processing", "sent", "failed"],
             default: "processing",
         },
+        hasRead: {
+            type: Boolean,
+            default: false,
+        },
+        readAt: {
+            type: Date,
+        },
         sentAt: {
             type: Date,
         },
@@ -81,11 +88,13 @@ const RecipientSchema = new mongoose.Schema(
     }
 );
 
+// Add indexes for read tracking queries
+RecipientSchema.index({ jobId: 1, email: 1 });
+RecipientSchema.index({ jobId: 1, hasRead: 1 });
+RecipientSchema.index({ jobId: 1, departmentCode: 1, hasRead: 1 });
+
 JobSchema.index({ jobId: 1 });
 JobSchema.index({ departmentCode: 1 });
-RecipientSchema.index({ jobId: 1 });
-RecipientSchema.index({ email: 1 });
-RecipientSchema.index({ departmentCode: 1 });
 
 const Job = mongoose.model("Job", JobSchema);
 const Recipient = mongoose.model("Recipient", RecipientSchema);
