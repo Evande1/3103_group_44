@@ -10,7 +10,10 @@ const upload = multer({ dest: "uploads/" });
 
 const { Jobs, Departments } = require("./models");
 const path = require("path");
-const { parseCSV, sendEmail } = require("./email");
+const {
+    processEmailCSVAndCreateJob,
+    sendEmailsInBackground,
+} = require("./email");
 
 // connect to mongodb
 mongoose.connect(
@@ -87,67 +90,34 @@ app.post("/departments", async (req, res) => {
     res.status(200).send(`Created ${departments.length} departments`);
 });
 
-app.post("/send-emails", upload.single("file"), async (req, res) => {
+app.post("/api/send-emails", upload.single("file"), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: "No file uploaded" });
         }
 
-        const department = req.body.department;
+        // default to all departments if not specified
+        const department = req.body.department || "all";
 
-        console.log("sending to department:", department);
-        if (!department) {
-            return res.status(400).json({ error: "Department is required" });
-        }
+        // creates a job in the database
+        const result = await processEmailCSVAndCreateJob(
+            req.file.path,
+            department
+        );
 
-        // Parse CSV file
-        const emailData = await parseCSV(req.file.path);
-        const sentCount = {};
-        const errors = [];
+        // Start sending emails in background
+        sendEmailsInBackground(result.job.jobId, result.recipients);
 
-        // Send emails
-        for (const row of emailData) {
-            const { name, email, department_code } = row;
-
-            // Skip if department doesn't match (unless 'all' is specified)
-            if (department !== "all" && department_code !== department) {
-                console.log(
-                    `Skipping ${email} (department ${department_code} doesn't match ${department})`
-                );
-                continue;
-            }
-
-            const success = await sendEmail(
-                email,
-                name,
-                department_code,
-                `Welcome to ${department_code} Department`
-            );
-
-            if (success) {
-                sentCount[department_code] =
-                    (sentCount[department_code] || 0) + 1;
-            } else {
-                errors.push(`Failed to send email to ${email}`);
-            }
-
-            // Add delay between emails
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
-
-        // Clean up uploaded file
-        fs.unlinkSync(req.file.path);
-
-        // Send response
         res.json({
             success: true,
-            sentCount,
-            errors: errors.length > 0 ? errors : undefined,
+            jobId: result.job.jobId,
+            totalRecipients: result.totalRecipients,
+            message: `Started processing ${result.totalRecipients} emails for job ${result.job.jobId}`,
         });
     } catch (error) {
-        console.error("Error processing emails:", error);
+        console.error("Error processing CSV:", error);
         res.status(500).json({
-            error: "Failed to process emails",
+            error: "Failed to process CSV file",
             details: error.message,
         });
     }
