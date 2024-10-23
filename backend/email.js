@@ -83,7 +83,11 @@ function validateCSVRow(row) {
 }
 
 // Process CSV and create job
-async function processEmailCSVAndCreateJob(filePath, departmentFilter = "all") {
+async function processEmailCSVAndCreateJob(
+    filePath,
+    departmentFilter = "all",
+    original_file_name
+) {
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -115,10 +119,10 @@ async function processEmailCSVAndCreateJob(filePath, departmentFilter = "all") {
             [
                 {
                     jobId,
-                    fileName: filePath.split("/").pop(), // Extract filename from path
+                    fileName: original_file_name, // Extract filename from path
                     departmentCode: departmentFilter,
                     totalRecipients: validatedData.length,
-                    status: "pending",
+                    status: "processing",
                 },
             ],
             { session }
@@ -130,7 +134,7 @@ async function processEmailCSVAndCreateJob(filePath, departmentFilter = "all") {
             name: row.name,
             departmentCode: row.department_code,
             jobId: jobId,
-            status: "pending",
+            status: "processing",
         }));
 
         await Recipient.insertMany(recipients, { session });

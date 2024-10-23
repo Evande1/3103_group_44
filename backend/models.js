@@ -22,8 +22,8 @@ const JobSchema = new mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ["pending", "processing", "completed", "failed"],
-            default: "pending",
+            enum: ["processing", "processing", "completed", "failed"],
+            default: "processing",
         },
         totalRecipients: {
             type: Number,
@@ -65,8 +65,8 @@ const RecipientSchema = new mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ["pending", "sent", "failed"],
-            default: "pending",
+            enum: ["processing", "sent", "failed"],
+            default: "processing",
         },
         sentAt: {
             type: Date,

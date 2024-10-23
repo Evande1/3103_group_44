@@ -8,7 +8,7 @@ const cors = require("cors");
 const port = 3030;
 const upload = multer({ dest: "uploads/" });
 
-const { Jobs, Departments } = require("./models");
+const { Job, Recipient } = require("./models");
 const path = require("path");
 const {
     processEmailCSVAndCreateJob,
@@ -90,6 +90,107 @@ app.post("/departments", async (req, res) => {
     res.status(200).send(`Created ${departments.length} departments`);
 });
 
+// get all jobs
+app.get("/api/jobs", async (req, res) => {
+    try {
+        const jobs = await Job.find()
+            .sort({ createdAt: -1 }) // Most recent first
+            .limit(50); // Limit to last 50 jobs
+        res.status(200).send(jobs);
+    } catch (error) {
+        console.error("Failed to fetch jobs:", error);
+        res.status(500).send("Failed to fetch jobs");
+    }
+});
+
+app.get("/api/jobs/:jobId", async (req, res) => {
+    try {
+        const { jobId } = req.params;
+        console.log(jobId);
+
+        // First find the job to ensure it exists
+        const job = await Job.findOne({ jobId });
+        console.log(job);
+
+        if (!job) {
+            return res.status(404).send("Job not found");
+        }
+
+        // Use aggregation to group recipients by department
+        const departmentStats = await Recipient.aggregate([
+            // Match recipients for this job
+            {
+                $match: {
+                    jobId: jobId,
+                },
+            },
+            // Group by department
+            {
+                $group: {
+                    _id: "$departmentCode",
+                    count: { $sum: 1 },
+                    recipients: {
+                        $push: {
+                            email: "$email",
+                            name: "$name",
+                            status: "$status",
+                            sentAt: "$sentAt",
+                            error: "$error",
+                        },
+                    },
+                    // Count statuses
+                    sent: {
+                        $sum: {
+                            $cond: [{ $eq: ["$status", "sent"] }, 1, 0],
+                        },
+                    },
+                    failed: {
+                        $sum: {
+                            $cond: [{ $eq: ["$status", "failed"] }, 1, 0],
+                        },
+                    },
+                    pending: {
+                        $sum: {
+                            $cond: [{ $eq: ["$status", "pending"] }, 1, 0],
+                        },
+                    },
+                },
+            },
+            // Reshape for final output
+            {
+                $project: {
+                    _id: 0,
+                    name: "$_id",
+                    count: 1,
+                    recipients: 1,
+                    stats: {
+                        sent: "$sent",
+                        failed: "$failed",
+                        pending: "$pending",
+                    },
+                },
+            },
+            // Sort by department name
+            {
+                $sort: {
+                    name: 1,
+                },
+            },
+        ]);
+
+        // Combine job data with department stats
+        const response = {
+            ...job.toObject(),
+            departments: departmentStats,
+        };
+
+        res.status(200).send(response);
+    } catch (error) {
+        console.error("Failed to fetch job details:", error);
+        res.status(500).send("Failed to fetch job details");
+    }
+});
+
 app.post("/api/send-emails", upload.single("file"), async (req, res) => {
     try {
         if (!req.file) {
@@ -99,10 +200,12 @@ app.post("/api/send-emails", upload.single("file"), async (req, res) => {
         // default to all departments if not specified
         const department = req.body.department || "all";
 
+        const original_file_name = req.file.originalname;
         // creates a job in the database
         const result = await processEmailCSVAndCreateJob(
             req.file.path,
-            department
+            department,
+            original_file_name
         );
 
         // Start sending emails in background

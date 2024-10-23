@@ -17,7 +17,7 @@ async function createEmailJob(csvData, departmentCode, fileName) {
                     fileName,
                     departmentCode,
                     totalRecipients: csvData.length,
-                    status: "pending",
+                    status: "processing",
                 },
             ],
             { session }
@@ -29,7 +29,7 @@ async function createEmailJob(csvData, departmentCode, fileName) {
             name: row.name,
             departmentCode: row.department_code,
             jobId: jobId,
-            status: "pending",
+            status: "processing",
         }));
 
         await Recipient.insertMany(recipients, { session });
